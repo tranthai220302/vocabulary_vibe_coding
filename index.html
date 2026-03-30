@@ -116,9 +116,41 @@
   .edit-link { font-size: 11px; color: var(--muted); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; transition: color 0.2s; }
   .edit-link:hover { color: var(--accent); }
   .preview-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; }
-  .preview-word { display: flex; align-items: baseline; gap: 8px; font-size: 13px; }
+  .preview-word { display: flex; align-items: center; gap: 6px; font-size: 13px; }
   .preview-word .pw-en { color: var(--text); font-weight: 500; }
-  .preview-word .pw-vi { color: var(--muted); font-size: 12px; }
+  .preview-word .pw-vi { color: var(--muted); font-size: 12px; flex: 1; }
+
+  /* AUDIO BUTTONS */
+  .speak-btn {
+    background: none; border: none; cursor: pointer;
+    color: var(--muted); font-size: 12px; padding: 2px 5px;
+    border-radius: 6px; transition: all 0.15s; line-height: 1;
+    flex-shrink: 0; display: inline-flex; align-items: center;
+    opacity: 0.5;
+  }
+  .speak-btn:hover { color: var(--accent); background: rgba(232,255,71,0.08); opacity: 1; }
+  .speak-btn.speaking { color: var(--accent); opacity: 1; animation: pulse-speak 0.5s ease infinite alternate; }
+  @keyframes pulse-speak { from { opacity: 1; } to { opacity: 0.3; } }
+
+  .quiz-speak-btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: rgba(232,255,71,0.07); border: 1px solid rgba(232,255,71,0.2);
+    color: var(--accent); border-radius: 8px; padding: 7px 16px;
+    font-size: 12px; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700;
+    cursor: pointer; transition: all 0.2s; margin-bottom: 20px; letter-spacing: 0.3px;
+  }
+  .quiz-speak-btn:hover { background: rgba(232,255,71,0.14); border-color: rgba(232,255,71,0.4); }
+  .quiz-speak-btn.speaking { animation: pulse-speak 0.5s ease infinite alternate; }
+
+  .wrc-speak-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(255,77,109,0.1); border: 1px solid rgba(255,77,109,0.25);
+    color: var(--wrong); border-radius: 7px; padding: 5px 12px;
+    font-size: 12px; font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700;
+    cursor: pointer; transition: all 0.2s; margin-top: 8px;
+  }
+  .wrc-speak-btn:hover { background: rgba(255,77,109,0.18); }
+  .wrc-speak-btn.speaking { animation: pulse-speak 0.5s ease infinite alternate; }
 
   .start-options { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
   .start-card {
@@ -627,6 +659,9 @@ word[TAB]nghĩa     hoặc     word | nghĩa</pre>
     <div class="quiz-card">
       <div class="card-badge"><div class="dot"></div><span id="modeBadge">Anh → Việt</span></div>
       <div class="question-word" id="questionWord">—</div>
+      <button class="quiz-speak-btn" id="quizSpeakBtn" onclick="speakQuizWord()">
+        <span class="qs-icon">🔊</span> Nghe phát âm
+      </button>
       <div class="question-hint" id="questionHint">Nhập nghĩa tiếng Việt</div>
       <div class="input-row">
         <input type="text" class="answer-input" id="answerInput" placeholder="Gõ đáp án..." autocomplete="off" autocorrect="off" spellcheck="false">
@@ -655,6 +690,7 @@ word[TAB]nghĩa     hoặc     word | nghĩa</pre>
           </div>
         </div>
         <div class="wrc-your-answer" id="wrcYourAnswer"></div>
+        <button class="wrc-speak-btn" id="wrcSpeakBtn" onclick="speakWrcWord()">🔊 Nghe lại từ đúng</button>
         <div class="wrc-tip">
           <span class="wrc-tip-icon">💡</span>
           <span>Từ này đã được thêm vào danh sách ôn luyện của bạn.</span>
@@ -907,8 +943,12 @@ function renderHome() {
   const sec   = document.getElementById('vocabSection');
   if (!vocab.length) { empty.style.display=''; sec.style.display='none'; return; }
   empty.style.display='none'; sec.style.display='';
-  document.getElementById('previewGrid').innerHTML = vocab.map(w =>
-    `<div class="preview-word"><span class="pw-en">${esc(w.en)}</span><span class="pw-vi">${esc(w.vi)}</span></div>`
+  document.getElementById('previewGrid').innerHTML = vocab.map((w, i) =>
+    `<div class="preview-word">
+      <button class="speak-btn" onclick="speak('${esc(w.en).replace(/'/g,"\\'")}', this)" title="Nghe phát âm">🔊</button>
+      <span class="pw-en">${esc(w.en)}</span>
+      <span class="pw-vi">${esc(w.vi)}</span>
+    </div>`
   ).join('');
   const mb = Object.keys(allMistakes);
   const banner = document.getElementById('mistakesBanner');
@@ -916,6 +956,53 @@ function renderHome() {
     banner.classList.add('show');
     document.getElementById('mistakesBannerDesc').textContent = mb.length + ' từ cần ôn lại';
   } else { banner.classList.remove('show'); }
+}
+
+// ═══ SPEECH ═══
+let currentUtterance = null;
+let _currentSpeakBtn = null;
+
+function speak(text, btnEl) {
+  if (!window.speechSynthesis) { showToast('⚠ Trình duyệt không hỗ trợ audio'); return; }
+
+  // Stop if already speaking same word
+  if (currentUtterance && window.speechSynthesis.speaking) {
+    window.speechSynthesis.cancel();
+    if (_currentSpeakBtn) _currentSpeakBtn.classList.remove('speaking');
+    if (_currentSpeakBtn === btnEl) { _currentSpeakBtn = null; currentUtterance = null; return; }
+  }
+
+  _currentSpeakBtn = btnEl || null;
+  if (btnEl) btnEl.classList.add('speaking');
+
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'en-US'; u.rate = 0.9; u.pitch = 1;
+
+  // Pick English voice if available
+  const voices = window.speechSynthesis.getVoices();
+  const enVoice = voices.find(v => v.lang.startsWith('en') && v.localService) ||
+                  voices.find(v => v.lang.startsWith('en'));
+  if (enVoice) u.voice = enVoice;
+
+  u.onend = () => { if (btnEl) btnEl.classList.remove('speaking'); currentUtterance = null; _currentSpeakBtn = null; };
+  u.onerror = () => { if (btnEl) btnEl.classList.remove('speaking'); currentUtterance = null; _currentSpeakBtn = null; };
+
+  currentUtterance = u;
+  window.speechSynthesis.speak(u);
+}
+
+// Current English word being quizzed (for speak button)
+let currentEnWord = '';
+
+function speakQuizWord() {
+  const btn = document.getElementById('quizSpeakBtn');
+  speak(currentEnWord, btn);
+}
+
+function speakWrcWord() {
+  const btn = document.getElementById('wrcSpeakBtn');
+  const word = document.getElementById('wrcEnWord').textContent;
+  speak(word, btn);
 }
 
 // ═══ SCREENS ═══
@@ -953,14 +1040,21 @@ function loadQuestion() {
   document.getElementById('mistakeCounter').textContent = '❌ '+sessionMistakes.length+' sai';
   document.getElementById('modeBadge').textContent = currentMode==='en-vi' ? 'Anh → Việt' : 'Việt → Anh';
 
+  currentEnWord = w.en;
+  const speakBtn = document.getElementById('quizSpeakBtn');
+
   if (currentMode === 'en-vi') {
     document.getElementById('questionWord').textContent = w.en;
     document.getElementById('questionHint').textContent = 'Nhập nghĩa tiếng Việt';
     document.getElementById('answerInput').placeholder = 'Gõ tiếng Việt...';
+    speakBtn.style.display = 'inline-flex';
+    // Auto-speak the English word
+    setTimeout(() => speak(w.en, speakBtn), 300);
   } else {
     document.getElementById('questionWord').textContent = w.vi;
     document.getElementById('questionHint').textContent = 'Nhập từ tiếng Anh';
     document.getElementById('answerInput').placeholder = 'Type in English...';
+    speakBtn.style.display = 'none';
   }
 
   const inp = document.getElementById('answerInput');
