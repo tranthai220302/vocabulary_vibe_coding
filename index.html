@@ -749,6 +749,15 @@ word[TAB]nghĩa     hoặc     word | nghĩa</pre>
     <div class="api-key-bar">
       <span class="api-key-label">Groq Key:</span>
       <input type="password" id="apiKeyInput" placeholder="gsk_... (Groq API key)" oninput="saveApiKey()">
+      <a href="https://console.groq.com/keys" target="_blank" style="
+        background: var(--surface); border: 1px solid var(--border); color: var(--muted);
+        border-radius: 8px; padding: 7px 12px; font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: 11px; font-weight: 700; text-decoration: none; white-space: nowrap;
+        transition: all 0.2s; letter-spacing: 0.3px; flex-shrink: 0;
+      " onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+         onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
+        Lấy key →
+      </a>
     </div>
 
     <!-- Từ vựng sẽ dùng -->
@@ -1210,20 +1219,10 @@ async function generatePassage() {
   const words = shuffle([...readingWords]).slice(0, 12);
   const wordList = words.map(w => `${w.en} (${w.vi})`).join(', ');
 
-  const prompt = `You are an English teacher. Write a short, natural English paragraph (5–8 sentences) for a Vietnamese learner.
-
-Requirements:
-- Use ALL of these vocabulary words naturally in the paragraph: ${wordList}
-- The paragraph should have a coherent topic and make sense as a story or explanation
-- Level: B1–B2 (intermediate)
-- After the paragraph, write "---TRANSLATION---" on a new line, then write the Vietnamese translation of the paragraph. In the Vietnamese translation, put each translated vocabulary word in [brackets].
-
-Format your response EXACTLY like this:
-[English paragraph here]
----TRANSLATION---
-[Vietnamese translation here]
-
-Do not add any other commentary.`;
+  const prompt = `Write 3–4 simple English sentences using these words: ${wordList}.
+Keep it short, easy (A2–B1), everyday topic. Use each word at least once.
+Then write "---TRANSLATION---" and the Vietnamese translation, putting each vocab word in [brackets].
+No intro, no explanation, just the text.`;
 
   try {
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
