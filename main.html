@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Word Forms — Ôn từ loại</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Instrument+Sans:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f5f2eb;
+  --ink: #1a1714;
+  --muted: #8a8680;
+  --surface: #fff;
+  --border: #e0dbd2;
+  --accent: #d4402a;
+  --accent2: #2a6dd4;
+  --correct: #1a7a4a;
+  --wrong: #c0392b;
+  --correct-bg: #e8f5ee;
+  --wrong-bg: #fdecea;
+  --tag-v: #fff3e0; --tag-v-ink: #b35a00;
+  --tag-n: #e3f0ff; --tag-n-ink: #1a4f8c;
+  --tag-adj: #fce4f0; --tag-adj-ink: #8c1a5a;
+  --tag-adv: #e8f5e9; --tag-adv-ink: #1a6b2a;
+  --tag-phrase: #f3e8ff; --tag-phrase-ink: #5a1a8c;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:'Instrument Sans',sans-serif;min-height:100vh}
+
+/* ── LAYOUT ── */
+.shell{max-width:720px;margin:0 auto;padding:32px 20px 80px}
+
+/* ── HEADER ── */
+header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:40px;padding-bottom:20px;border-bottom:1.5px solid var(--ink)}
+.logo{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;letter-spacing:-0.5px}
+.logo em{font-style:normal;color:var(--accent)}
+.logo-sub{font-size:12px;color:var(--muted);font-weight:400;font-family:'Instrument Sans',sans-serif}
+
+/* ── TABS ── */
+.tabs{display:flex;gap:0;margin-bottom:32px;border-bottom:1.5px solid var(--border)}
+.tab{padding:10px 20px;font-family:'Syne',sans-serif;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;border:none;background:none;letter-spacing:.3px;border-bottom:2.5px solid transparent;margin-bottom:-1.5px;transition:all .18s}
+.tab.active{color:var(--ink);border-bottom-color:var(--ink)}
+.tab:hover:not(.active){color:var(--ink)}
+
+/* ── SCREEN ── */
+.screen{display:none;animation:up .25s ease}
+.screen.active{display:block}
+@keyframes up{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── DATA INPUT ── */
+.section-title{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+.format-hint{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:16px;font-family:monospace;font-size:12px;line-height:1.9;color:var(--muted)}
+.format-hint b{color:var(--ink);font-weight:700}
+textarea{width:100%;min-height:220px;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;padding:14px 16px;font-family:monospace;font-size:13px;line-height:1.7;color:var(--ink);outline:none;resize:vertical;transition:border-color .2s}
+textarea:focus{border-color:var(--ink)}
+textarea::placeholder{color:#bbb}
+.parse-status{font-size:13px;min-height:22px;margin:10px 0;color:var(--muted)}
+.parse-status.ok{color:var(--correct)}
+.parse-status.err{color:var(--wrong)}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
+.btn{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;letter-spacing:.3px;border:none;border-radius:8px;padding:10px 22px;cursor:pointer;transition:all .18s}
+.btn-dark{background:var(--ink);color:var(--bg)}
+.btn-dark:hover{background:#333}
+.btn-dark:disabled{opacity:.4;cursor:default}
+.btn-outline{background:none;border:1.5px solid var(--border);color:var(--muted)}
+.btn-outline:hover{border-color:var(--ink);color:var(--ink)}
+
+/* ── WORD LIST PREVIEW ── */
+.family-list{display:grid;gap:10px;margin-top:20px}
+.family-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+.family-root{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:8px;color:var(--ink)}
+.forms-row{display:flex;flex-wrap:wrap;gap:6px}
+.form-tag{display:inline-flex;align-items:center;gap:5px;border-radius:20px;padding:4px 10px;font-size:12px;font-weight:500}
+.form-tag .pos{font-weight:700;font-size:10px;letter-spacing:.5px;text-transform:uppercase;opacity:.7}
+.pos-v{background:var(--tag-v);color:var(--tag-v-ink)}
+.pos-n{background:var(--tag-n);color:var(--tag-n-ink)}
+.pos-adj{background:var(--tag-adj);color:var(--tag-adj-ink)}
+.pos-adv{background:var(--tag-adv);color:var(--tag-adv-ink)}
+.pos-phrase{background:var(--tag-phrase);color:var(--tag-phrase-ink)}
+
+/* ── QUIZ ── */
+.quiz-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;font-size:13px;color:var(--muted)}
+.progress-wrap{background:var(--border);border-radius:4px;height:4px;margin-bottom:6px;overflow:hidden}
+.progress-bar{height:100%;background:var(--ink);border-radius:4px;transition:width .4s ease}
+.score-badge{font-family:'Syne',sans-serif;font-size:12px;font-weight:700;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:4px 12px}
+
+/* ── QUIZ CARD ── */
+.quiz-card{background:var(--surface);border:1.5px solid var(--border);border-radius:16px;padding:32px 28px;margin-bottom:16px;position:relative}
+.quiz-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--ink);border-radius:16px 16px 0 0}
+.q-group-label{font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin-bottom:20px;font-family:'Syne',sans-serif}
+
+/* part A — pos choice */
+.q-word-display{font-family:'Syne',sans-serif;font-size:38px;font-weight:800;color:var(--ink);margin-bottom:6px;line-height:1}
+.q-meaning{font-size:14px;color:var(--muted);margin-bottom:24px}
+.q-label{font-size:12px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;font-family:'Syne',sans-serif}
+.choices{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.choice{padding:12px 16px;border:1.5px solid var(--border);border-radius:10px;background:none;font-family:'Syne',sans-serif;font-size:14px;font-weight:600;color:var(--ink);cursor:pointer;text-align:left;transition:all .15s}
+.choice:hover:not(:disabled){border-color:var(--ink);background:var(--bg)}
+.choice.selected{border-color:var(--ink);background:var(--ink);color:var(--bg)}
+.choice.correct-choice{border-color:var(--correct);background:var(--correct-bg);color:var(--correct)}
+.choice.wrong-choice{border-color:var(--wrong);background:var(--wrong-bg);color:var(--wrong);text-decoration:line-through}
+.choice:disabled{cursor:default}
+
+/* divider */
+.q-divider{border:none;border-top:1px dashed var(--border);margin:20px 0}
+
+/* part B — meaning input */
+.meaning-input{width:100%;padding:12px 14px;font-family:'Instrument Sans',sans-serif;font-size:15px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg);color:var(--ink);outline:none;transition:border-color .2s}
+.meaning-input:focus{border-color:var(--ink)}
+.meaning-input.correct-input{border-color:var(--correct);background:var(--correct-bg)}
+.meaning-input.wrong-input{border-color:var(--wrong);background:var(--wrong-bg)}
+.meaning-input:disabled{opacity:.7}
+
+/* feedback */
+.feedback-row{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;min-height:22px}
+.fb-icon{font-size:15px}
+.fb-correct{color:var(--correct)}
+.fb-wrong{color:var(--wrong)}
+.correct-answer{font-weight:600;color:var(--correct)}
+
+/* nav */
+.quiz-nav{display:flex;justify-content:flex-end;gap:10px;margin-top:16px}
+
+/* ── RESULT ── */
+.result-wrap{text-align:center;padding:48px 20px}
+.result-pct{font-family:'Syne',sans-serif;font-size:80px;font-weight:800;color:var(--ink);line-height:1}
+.result-sub{font-size:15px;color:var(--muted);margin:8px 0 32px}
+.result-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.miss-section{margin-top:32px;text-align:left}
+.miss-title{font-family:'Syne',sans-serif;font-size:12px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--wrong);margin-bottom:14px}
+.miss-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.miss-item{background:var(--wrong-bg);border:1px solid #f5c6c0;border-radius:10px;padding:10px 14px}
+.miss-word{font-family:'Syne',sans-serif;font-size:14px;font-weight:700}
+.miss-detail{font-size:12px;color:var(--muted);margin-top:3px}
+.miss-pos-badge{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;background:rgba(0,0,0,.07);border-radius:4px;padding:2px 6px;margin-right:4px}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--ink);color:var(--bg);border-radius:8px;padding:10px 22px;font-size:13px;font-family:'Syne',sans-serif;font-weight:600;opacity:0;transition:all .3s;pointer-events:none;z-index:99;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── RESPONSIVE ── */
+@media(max-width:480px){
+  .choices{grid-template-columns:1fr}
+  .q-word-display{font-size:28px}
+  .result-pct{font-size:60px}
+  .miss-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <header>
+    <div>
+      <div class="logo">word<em>.</em>forms</div>
+      <div class="logo-sub">Ôn từ loại tiếng Anh</div>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('data')">📋 Nhập data</button>
+    <button class="tab" id="tabQuiz" onclick="switchTab('quiz')">✏ Luyện tập</button>
+    <button class="tab" onclick="switchTab('list')">📖 Danh sách</button>
+  </div>
+
+  <!-- ══ DATA INPUT ══ -->
+  <div class="screen active" id="screenData">
+    <div class="section-title">Định dạng đầu vào</div>
+    <div class="format-hint">
+      <b>Cú pháp:</b> word (pos): nghĩa | word2 (pos): nghĩa | ...<br>
+      <b>Ví dụ:</b><br>
+      accept (v): chấp nhận | acceptance (n): sự chấp nhận<br>
+      complete (v): hoàn thành | complete (adj): hoàn chỉnh | completely (adv): hoàn toàn<br>
+      in charge of (phrase): chịu trách nhiệm
+    </div>
+    <textarea id="inputArea" placeholder="Paste danh sách từ vựng vào đây..."></textarea>
+    <div class="parse-status" id="parseStatus"></div>
+    <div class="row">
+      <button class="btn btn-dark" id="saveBtn" onclick="saveData()" disabled>💾 Lưu & Luyện tập</button>
+      <button class="btn btn-outline" onclick="loadSample()">Nạp dữ liệu mẫu</button>
+      <button class="btn btn-outline" onclick="clearAll()">🗑 Xóa</button>
+    </div>
+  </div>
+
+  <!-- ══ QUIZ ══ -->
+  <div class="screen" id="screenQuiz">
+    <div id="quizArea"></div>
+  </div>
+
+  <!-- ══ WORD LIST ══ -->
+  <div class="screen" id="screenList">
+    <div class="section-title">Danh sách từ đã lưu</div>
+    <div class="family-list" id="familyList"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ══ DATA ══
+let families = []; // [{root, forms:[{word,pos,vi}]}]
+let queue = []; // [{familyIdx, form:{word,pos,vi}, posChoices:[str], correctPos, allPosInFamily}]
+let qIdx = 0;
+let sessionMisses = []; // {word, pos, vi, wrongPos, wrongMeaning}
+let posAnswered = false;
+let meaningAnswered = false;
+
+const POS_COLORS = {v:'pos-v',n:'pos-n',adj:'pos-adj',adv:'pos-adv',phrase:'pos-phrase'};
+const POS_LABELS = {v:'Verb',n:'Noun',adj:'Adjective',adv:'Adverb',phrase:'Phrase'};
+const ALL_POS = ['v','n','adj','adv','phrase'];
+
+const SAMPLE = `accept (v): chấp nhận | acceptance (n): sự chấp nhận
+accommodate (v): cung cấp chỗ ở, đáp ứng | accommodation (n): chỗ ở
+add (v): thêm | additional (adj): thêm vào, bổ sung | addition (n): sự thêm vào
+advise (v): khuyên | advisable (adj): nên làm | advice (n): lời khuyên | advisor (n): người cố vấn
+agree (v): đồng ý | agreement (n): sự đồng ý
+apologize (v): xin lỗi | apology (n): lời xin lỗi
+apply (v): áp dụng, nộp đơn | applicant (n): người nộp đơn | application (n): đơn xin
+approve (v): chấp thuận | approval (n): sự chấp thuận
+attract (v): thu hút | attractive (adj): hấp dẫn | attraction (n): sự thu hút
+authorize (v): ủy quyền | authorized (adj): được ủy quyền | authority (n): quyền lực
+attend (v): tham dự | attendance (n): sự tham dự | attendee (n): người tham dự
+collaborate (v): cộng tác | collaborative (adj): mang tính hợp tác | collaboratively (adv): một cách hợp tác
+complain (v): phàn nàn | complaint (n): lời phàn nàn
+complete (v): hoàn thành | complete (adj): hoàn chỉnh | completely (adv): hoàn toàn | completion (n): sự hoàn thành
+confirm (v): xác nhận | confirmation (n): sự xác nhận
+consider (v): cân nhắc | considerable (adj): đáng kể | consideration (n): sự cân nhắc
+construct (v): xây dựng | constructive (adj): mang tính xây dựng | construction (n): sự xây dựng
+consult (v): tư vấn | consultant (n): cố vấn
+charge (v): tính phí | charge (n): phí | in charge of (phrase): chịu trách nhiệm
+choose (v): chọn | choice (n): lựa chọn
+clear (adj): rõ ràng | clearly (adv): một cách rõ ràng
+close (v): đóng | close (adj): gần | closely (adv): một cách chặt chẽ`;
+
+// ══ PARSE ══
+function parseInput(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const result = [];
+  for (const line of lines) {
+    const parts = line.split('|').map(s => s.trim()).filter(Boolean);
+    const forms = [];
+    for (const part of parts) {
+      // match: word (pos): meaning  OR  multi-word phrase (pos): meaning
+      const m = part.match(/^(.+?)\s*\((\w+)\)\s*:\s*(.+)$/);
+      if (m) {
+        const word = m[1].trim();
+        const pos = m[2].trim().toLowerCase();
+        const vi = m[3].trim();
+        forms.push({word, pos, vi});
+      }
+    }
+    if (forms.length > 0) {
+      const root = forms[0].word;
+      result.push({root, forms});
+    }
+  }
+  return result;
+}
+
+// ══ INPUT LIVE CHECK ══
+document.getElementById('inputArea').addEventListener('input', () => {
+  const text = document.getElementById('inputArea').value;
+  const st = document.getElementById('parseStatus');
+  const btn = document.getElementById('saveBtn');
+  if (!text.trim()) { st.textContent = ''; btn.disabled = true; return; }
+  const parsed = parseInput(text);
+  if (!parsed.length) {
+    st.className = 'parse-status err'; st.textContent = '⚠ Không đọc được. Kiểm tra lại định dạng.';
+    btn.disabled = true;
+  } else {
+    const total = parsed.reduce((a,f) => a + f.forms.length, 0);
+    st.className = 'parse-status ok'; st.textContent = `✓ ${parsed.length} nhóm từ · ${total} dạng từ`;
+    btn.disabled = false;
+  }
+});
+
+function loadSample() {
+  document.getElementById('inputArea').value = SAMPLE;
+  document.getElementById('inputArea').dispatchEvent(new Event('input'));
+}
+
+function saveData() {
+  const text = document.getElementById('inputArea').value;
+  families = parseInput(text);
+  if (!families.length) return;
+  localStorage.setItem('wf_families', JSON.stringify(families));
+  showToast(`✓ Đã lưu ${families.length} nhóm từ!`);
+  buildQueue();
+  renderList();
+  switchTab('quiz');
+}
+
+function clearAll() {
+  document.getElementById('inputArea').value = '';
+  document.getElementById('parseStatus').textContent = '';
+  document.getElementById('saveBtn').disabled = true;
+}
+
+function loadStored() {
+  try {
+    const s = localStorage.getItem('wf_families');
+    if (s) families = JSON.parse(s);
+  } catch {}
+}
+
+// ══ QUEUE BUILD ══
+// Each item = one FORM in a family, asked with pos-choice + meaning input
+// Items for the same family are asked together before moving to next family
+function buildQueue() {
+  queue = [];
+  for (let fi = 0; fi < families.length; fi++) {
+    const fam = families[fi];
+    for (const form of fam.forms) {
+      // Build 4 pos choices: correct + 3 random from all pos
+      const correctPos = form.pos;
+      const others = ALL_POS.filter(p => p !== correctPos);
+      shuffle(others);
+      const distractors = others.slice(0, 3);
+      const posChoices = shuffle([correctPos, ...distractors]);
+      queue.push({
+        familyIdx: fi,
+        form,
+        posChoices,
+        correctPos
+      });
+    }
+  }
+  // Sort by family so same family forms come together
+  // (already in order by family, just shuffle within same family boundaries)
+  qIdx = 0;
+  sessionMisses = [];
+}
+
+// ══ QUIZ RENDER ══
+function renderQuiz() {
+  const area = document.getElementById('quizArea');
+  if (!queue.length) {
+    area.innerHTML = `<div style="text-align:center;padding:60px 20px;color:var(--muted)">
+      <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;margin-bottom:12px">Chưa có dữ liệu</div>
+      <p style="font-size:14px">Vào tab <b>Nhập data</b> để thêm từ vựng.</p>
+    </div>`;
+    return;
+  }
+  if (qIdx >= queue.length) { renderResult(); return; }
+
+  const q = queue[qIdx];
+  const fam = families[q.familyIdx];
+  posAnswered = false;
+  meaningAnswered = false;
+
+  // Group label: show all forms in this family as context
+  const famForms = fam.forms.map(f =>
+    `<span class="form-tag ${POS_COLORS[f.pos]||'pos-v'}"><span class="pos">${f.pos}</span>${esc(f.word)}</span>`
+  ).join(' ');
+
+  area.innerHTML = `
+    <div class="progress-wrap"><div class="progress-bar" id="pbar" style="width:${qIdx/queue.length*100}%"></div></div>
+    <div class="quiz-meta">
+      <span>${qIdx+1} / ${queue.length}</span>
+      <span class="score-badge">❌ ${sessionMisses.length}</span>
+    </div>
+
+    <div class="quiz-card">
+
+      <div class="q-word-display">${esc(q.form.word)}</div>
+      <div class="q-meaning" id="qMeaning" style="opacity:0">— nghĩa ẩn —</div>
+
+      <div class="q-label">A. Từ loại (Part of Speech)</div>
+      <div class="choices" id="choicesGrid">
+        ${q.posChoices.map(p => `
+          <button class="choice" data-pos="${p}" onclick="choosePos('${p}')">
+            ${POS_LABELS[p]||p}
+          </button>
+        `).join('')}
+      </div>
+      <div class="feedback-row" id="posFb"></div>
+
+      <hr class="q-divider">
+
+      <div class="q-label">B. Nghĩa tiếng Việt</div>
+      <input class="meaning-input" id="meaningInput" placeholder="Gõ nghĩa..." autocomplete="off" spellcheck="false" disabled>
+      <div class="feedback-row" id="meaningFb"></div>
+    </div>
+
+    <div class="quiz-nav">
+      <button class="btn btn-dark" id="nextBtn" onclick="nextQ()" style="display:none">Tiếp theo →</button>
+    </div>
+  `;
+
+  document.getElementById('meaningInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') checkMeaning();
+  });
+}
+
+function choosePos(chosen) {
+  if (posAnswered) return;
+  posAnswered = true;
+  const q = queue[qIdx];
+  const correct = q.correctPos;
+  const btns = document.querySelectorAll('.choice');
+  btns.forEach(b => {
+    b.disabled = true;
+    if (b.dataset.pos === correct) b.classList.add('correct-choice');
+    else if (b.dataset.pos === chosen && chosen !== correct) b.classList.add('wrong-choice');
+  });
+  const fb = document.getElementById('posFb');
+  if (chosen === correct) {
+    fb.innerHTML = `<span class="fb-icon">✓</span><span class="fb-correct">Đúng! — ${POS_LABELS[correct]||correct}</span>`;
+  } else {
+    fb.innerHTML = `<span class="fb-icon">✗</span><span class="fb-wrong">Sai. Đáp án: <span class="correct-answer">${POS_LABELS[correct]||correct}</span></span>`;
+    markMiss(q, 'pos', chosen);
+  }
+  // Reveal meaning hint & unlock part B
+  document.getElementById('qMeaning').style.opacity = '1';
+  document.getElementById('qMeaning').textContent = '';
+  document.getElementById('meaningInput').disabled = false;
+  document.getElementById('meaningInput').focus();
+}
+
+function checkMeaning() {
+  if (meaningAnswered || !posAnswered) return;
+  const q = queue[qIdx];
+  const inp = document.getElementById('meaningInput');
+  const raw = inp.value.trim();
+  if (!raw) { inp.focus(); return; }
+  meaningAnswered = true;
+  inp.disabled = true;
+
+  const isOk = normMeaning(raw) === normMeaning(q.form.vi);
+  const fb = document.getElementById('meaningFb');
+  if (isOk) {
+    inp.classList.add('correct-input');
+    fb.innerHTML = `<span class="fb-icon">✓</span><span class="fb-correct">Đúng!</span>`;
+  } else {
+    inp.classList.add('wrong-input');
+    fb.innerHTML = `<span class="fb-icon">✗</span><span class="fb-wrong">Đáp án: <span class="correct-answer">${esc(q.form.vi)}</span></span>`;
+    markMiss(q, 'meaning', raw);
+  }
+  document.getElementById('nextBtn').style.display = 'block';
+}
+
+document.addEventListener('keydown', e => {
+  if (document.getElementById('screenQuiz').classList.contains('active')) {
+    if (e.key === 'Enter' && posAnswered && !meaningAnswered) {
+      checkMeaning();
+    } else if (e.key === 'Enter' && meaningAnswered) {
+      nextQ();
+    }
+  }
+});
+
+function nextQ() {
+  qIdx++;
+  renderQuiz();
+}
+
+function markMiss(q, type, wrong) {
+  const key = q.form.word + '_' + type;
+  if (!sessionMisses.find(m => m.key === key)) {
+    sessionMisses.push({key, word: q.form.word, pos: q.form.pos, vi: q.form.vi, type, wrong});
+  }
+}
+
+// ══ RESULT ══
+function renderResult() {
+  const total = queue.length;
+  const missKeys = new Set(sessionMisses.map(m => m.key.split('_')[0]+'_'+m.key.split('_')[0]));
+  // Count unique words with any mistake
+  const missWords = [...new Set(sessionMisses.map(m => m.word))];
+  const correct = total - sessionMisses.length;
+  const pct = Math.round(correct / (total*2) * 100); // 2 questions per word (pos+meaning)
+  const emoji = pct===100?'🏆':pct>=80?'🎉':pct>=60?'💪':'😅';
+
+  const missHtml = missWords.length ? `
+    <div class="miss-section">
+      <div class="miss-title">⚑ Từ cần ôn lại (${missWords.length} từ)</div>
+      <div class="miss-grid">
+        ${missWords.map(w => {
+          const q = queue.find(q => q.form.word === w);
+          if (!q) return '';
+          return `<div class="miss-item">
+            <div class="miss-word">${esc(q.form.word)} <span class="miss-pos-badge">${q.form.pos}</span></div>
+            <div class="miss-detail">${esc(q.form.vi)}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+  ` : '';
+
+  document.getElementById('quizArea').innerHTML = `
+    <div class="result-wrap">
+      <div style="font-size:52px;margin-bottom:12px">${emoji}</div>
+      <div class="result-pct">${pct}%</div>
+      <div class="result-sub">${correct}/${total*2} câu đúng · ${missWords.length} từ cần ôn</div>
+      <div class="result-actions">
+        <button class="btn btn-outline" onclick="buildQueue();renderQuiz()">Làm lại từ đầu</button>
+        ${missWords.length ? `<button class="btn btn-dark" onclick="retryMiss()">🔁 Ôn lại từ sai</button>` : ''}
+      </div>
+      ${missHtml}
+    </div>
+  `;
+}
+
+function retryMiss() {
+  const missWords = [...new Set(sessionMisses.map(m => m.word))];
+  const newFamilies = families.map(fam => ({
+    ...fam,
+    forms: fam.forms.filter(f => missWords.includes(f.form ? f.form.word : f.word))
+  })).filter(fam => fam.forms.length);
+  // Rebuild queue from missed items only
+  queue = [];
+  for (const fam of newFamilies) {
+    for (const form of fam.forms) {
+      const correctPos = form.pos;
+      const others = ALL_POS.filter(p => p !== correctPos);
+      shuffle(others);
+      const posChoices = shuffle([correctPos, ...others.slice(0,3)]);
+      queue.push({familyIdx: families.indexOf(fam), form, posChoices, correctPos});
+    }
+  }
+  qIdx = 0; sessionMisses = [];
+  renderQuiz();
+}
+
+// ══ WORD LIST ══
+function renderList() {
+  const el = document.getElementById('familyList');
+  if (!families.length) { el.innerHTML = '<p style="color:var(--muted);font-size:14px">Chưa có dữ liệu.</p>'; return; }
+  el.innerHTML = families.map(fam => `
+    <div class="family-card">
+      <div class="family-root">${esc(fam.root)}</div>
+      <div class="forms-row">
+        ${fam.forms.map(f => `
+          <span class="form-tag ${POS_COLORS[f.pos]||'pos-v'}">
+            <span class="pos">${f.pos}</span>
+            ${esc(f.word)} — ${esc(f.vi)}
+          </span>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+// ══ TABS ══
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.remove('active'));
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const map = {data:0, quiz:1, list:2};
+  document.querySelectorAll('.tab')[map[name]].classList.add('active');
+  document.getElementById('screen'+name.charAt(0).toUpperCase()+name.slice(1)).classList.add('active');
+  if (name === 'quiz') renderQuiz();
+  if (name === 'list') renderList();
+}
+
+// ══ UTILS ══
+function shuffle(a) {
+  for (let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function normMeaning(s){
+  return s.toLowerCase().normalize('NFC')
+    .replace(/[.,!?;:]/g,'').replace(/\s+/g,' ').trim();
+}
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+// ══ INIT ══
+loadStored();
+if (families.length) {
+  buildQueue();
+  renderList();
+  document.getElementById('inputArea').value = (() => {
+    try { const s=localStorage.getItem('wf_families'); return s ? '' : ''; } catch{return '';}
+  })();
+}
+</script>
+</body>
+</html>
