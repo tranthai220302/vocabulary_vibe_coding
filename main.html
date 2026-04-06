@@ -410,7 +410,7 @@ function choosePos(chosen) {
   }
   // Reveal meaning hint & unlock part B
   document.getElementById('qMeaning').style.opacity = '1';
-  document.getElementById('qMeaning').textContent = '';
+  document.getElementById('qMeaning').textContent = '✎ ' + q.form.vi;
   document.getElementById('meaningInput').disabled = false;
   document.getElementById('meaningInput').focus();
 }
