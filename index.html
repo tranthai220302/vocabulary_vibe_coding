@@ -542,6 +542,31 @@
     color: #10a37f; margin-left: 8px;
   }
 
+  /* AUTO-RECORD + MARK CORRECT */
+  .auto-rec-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(255,77,109,0.1); border: 1px solid rgba(255,77,109,0.28);
+    color: var(--wrong); border-radius: 20px; padding: 4px 11px;
+    font-size: 11px; font-weight: 700; font-family: 'Plus Jakarta Sans', sans-serif;
+    letter-spacing: 0.3px; margin-left: 10px; opacity: 0; transition: opacity 0.2s;
+    vertical-align: middle;
+  }
+  .auto-rec-badge.show { opacity: 1; }
+  .auto-rec-dot {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--wrong);
+    animation: pulse-speak 0.6s ease infinite alternate;
+  }
+  .wrc-mark-correct {
+    display: flex; align-items: center; gap: 9px; margin-top: 12px;
+    padding-top: 12px; border-top: 1px solid rgba(255,77,109,0.15);
+    font-size: 12.5px; color: var(--text); cursor: pointer; user-select: none;
+  }
+  .wrc-mark-correct input {
+    width: 16px; height: 16px; accent-color: var(--correct); cursor: pointer; flex-shrink: 0;
+  }
+  .wrc-mark-correct .wmc-label { line-height: 1.4; }
+  .wrc-mark-correct .wmc-sub { display: block; color: var(--muted); font-size: 11px; margin-top: 1px; }
+
   @media (max-width: 520px) {
     .question-word { font-size: 28px; }
     .home-title { font-size: 36px; }
@@ -677,6 +702,7 @@ word[TAB]nghĩa     hoặc     word | nghĩa</pre>
       <button class="quiz-speak-btn" id="quizSpeakBtn" onclick="speakQuizWord()">
         <span class="qs-icon">🔊</span> Nghe phát âm
       </button>
+      <span class="auto-rec-badge" id="autoRecBadge"><span class="auto-rec-dot"></span>Đang tự động ghi âm…</span>
       <div class="question-hint" id="questionHint">Nhập nghĩa tiếng Việt</div>
       <div class="input-row">
         <input type="text" class="answer-input" id="answerInput" placeholder="Gõ đáp án..." autocomplete="off" autocorrect="off" spellcheck="false">
@@ -708,6 +734,12 @@ word[TAB]nghĩa     hoặc     word | nghĩa</pre>
         </div>
         <div class="wrc-your-answer" id="wrcYourAnswer"></div>
         <button class="wrc-speak-btn" id="wrcSpeakBtn" onclick="speakWrcWord()">🔊 Nghe lại từ đúng</button>
+        <label class="wrc-mark-correct">
+          <input type="checkbox" id="markCorrectChk" onchange="toggleMarkCorrect(this)">
+          <span class="wmc-label">Thực ra mình trả lời đúng
+            <span class="wmc-sub">Bỏ từ này khỏi danh sách ôn lại (ví dụ do ghi âm nhận nhầm)</span>
+          </span>
+        </label>
         <div class="wrc-tip">
           <span class="wrc-tip-icon">💡</span>
           <span>Từ này đã được thêm vào danh sách ôn luyện của bạn.</span>
@@ -989,8 +1021,8 @@ function renderHome() {
 let currentUtterance = null;
 let _currentSpeakBtn = null;
 
-function speak(text, btnEl) {
-  if (!window.speechSynthesis) { showToast('⚠ Trình duyệt không hỗ trợ audio'); return; }
+function speak(text, btnEl, onEnd) {
+  if (!window.speechSynthesis) { showToast('⚠ Trình duyệt không hỗ trợ audio'); if (onEnd) onEnd(); return; }
 
   // Stop if already speaking same word
   if (currentUtterance && window.speechSynthesis.speaking) {
@@ -1011,8 +1043,8 @@ function speak(text, btnEl) {
                   voices.find(v => v.lang.startsWith('en'));
   if (enVoice) u.voice = enVoice;
 
-  u.onend = () => { if (btnEl) btnEl.classList.remove('speaking'); currentUtterance = null; _currentSpeakBtn = null; };
-  u.onerror = () => { if (btnEl) btnEl.classList.remove('speaking'); currentUtterance = null; _currentSpeakBtn = null; };
+  u.onend = () => { if (btnEl) btnEl.classList.remove('speaking'); currentUtterance = null; _currentSpeakBtn = null; if (onEnd) onEnd(); };
+  u.onerror = () => { if (btnEl) btnEl.classList.remove('speaking'); currentUtterance = null; _currentSpeakBtn = null; if (onEnd) onEnd(); };
 
   currentUtterance = u;
   window.speechSynthesis.speak(u);
@@ -1081,6 +1113,7 @@ function toggleDictation() {
     recognition.start();
     isListening = true;
     document.getElementById('micBtn').classList.add('listening');
+    document.getElementById('autoRecBadge').classList.add('show');
   } catch (err) {
     // start() throws if already started etc.
   }
@@ -1090,6 +1123,18 @@ function stopListening() {
   isListening = false;
   const micBtn = document.getElementById('micBtn');
   if (micBtn) micBtn.classList.remove('listening');
+  const badge = document.getElementById('autoRecBadge');
+  if (badge) badge.classList.remove('show');
+}
+
+// Tự động bật ghi âm khi sang từ mới ở chế độ Anh → Việt,
+// gọi ngay sau khi phát âm thanh từ tiếng Anh xong để tránh mic nghe nhầm chính giọng đọc.
+function autoStartDictation() {
+  if (currentMode !== 'en-vi') return;
+  if (!recognition) return;
+  if (answered) return;
+  if (isListening) return;
+  toggleDictation();
 }
 
 // ═══ SCREENS ═══
@@ -1134,11 +1179,11 @@ function loadQuestion() {
   if (currentMode === 'en-vi') {
     document.getElementById('questionWord').textContent = w.en;
     document.getElementById('questionHint').textContent = 'Nhập nghĩa tiếng Việt';
-    document.getElementById('answerInput').placeholder = 'Gõ tiếng Việt hoặc bấm 🎤 để nói...';
+    document.getElementById('answerInput').placeholder = 'Gõ tiếng Việt hoặc để mic tự ghi âm...';
     speakBtn.style.display = 'inline-flex';
     if (recognition) micBtn.style.display = 'inline-flex';
-    // Auto-speak the English word
-    setTimeout(() => speak(w.en, speakBtn), 300);
+    // Auto-speak the English word, rồi tự động bật ghi âm ngay khi đọc xong
+    setTimeout(() => speak(w.en, speakBtn, autoStartDictation), 300);
   } else {
     document.getElementById('questionWord').textContent = w.vi;
     document.getElementById('questionHint').textContent = 'Nhập từ tiếng Anh';
@@ -1151,6 +1196,7 @@ function loadQuestion() {
   inp.value=''; inp.className='answer-input'; inp.disabled=false;
   document.getElementById('feedbackBox').className='feedback';
   document.getElementById('wrongReviewCard').className='wrong-review-card';
+  document.getElementById('markCorrectChk').checked = false;
   document.getElementById('submitBtn').disabled=false;
   document.getElementById('micBtn').disabled=false;
   document.getElementById('micHint').classList.remove('show');
@@ -1198,12 +1244,33 @@ function checkAnswer() {
     } else {
       yaEl.innerHTML = '';
     }
+    document.getElementById('markCorrectChk').checked = false;
     document.getElementById('wrongReviewCard').className='wrong-review-card show';
 
     if (!sessionMistakes.find(m=>m.en===w.en)) sessionMistakes.push(w);
     allMistakes[w.en.toLowerCase()] = w;
     updateMistakesPanel();
   }
+  saveMistakes();
+}
+
+// Người dùng tự đánh dấu "thực ra mình trả lời đúng" (vd. do ghi âm nhận nhầm giọng nói)
+// -> loại từ này khỏi danh sách ôn lại của phiên hiện tại và danh sách ôn lại tổng.
+function toggleMarkCorrect(chk) {
+  const w = queue[currentIndex];
+  if (!w) return;
+
+  if (chk.checked) {
+    sessionMistakes = sessionMistakes.filter(m => m.en !== w.en);
+    delete allMistakes[w.en.toLowerCase()];
+    document.getElementById('fbText').textContent = 'Đã đánh dấu là đã thuộc — sẽ không xuất hiện trong danh sách ôn lại.';
+  } else {
+    if (!sessionMistakes.find(m => m.en === w.en)) sessionMistakes.push(w);
+    allMistakes[w.en.toLowerCase()] = w;
+    document.getElementById('fbText').textContent = 'Sai rồi!';
+  }
+  document.getElementById('mistakeCounter').textContent = '❌ '+sessionMistakes.length+' sai';
+  updateMistakesPanel();
   saveMistakes();
 }
 
