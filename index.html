@@ -14,7 +14,7 @@
     --accent2: #ff6b35;
     --text: #f0f0f0;
     --muted: #666;
-    --correct: #4dff91;gquestion-word
+    --correct: #4dff91;
     --wrong: #ff4d6d;
     --border: #2a2a2a;
   }
@@ -287,6 +287,21 @@
   }
   .submit-btn:hover { background: #d4eb2e; transform: translateY(-1px); }
   .submit-btn:disabled { opacity: 0.4; cursor: default; transform: none; }
+
+  .mic-btn {
+    background: var(--surface); border: 1.5px solid var(--border); color: var(--muted);
+    border-radius: 10px; width: 46px; height: 46px; flex-shrink: 0; cursor: pointer;
+    font-size: 18px; display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+  }
+  .mic-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .mic-btn.listening {
+    background: rgba(255,77,109,0.12); border-color: var(--wrong); color: var(--wrong);
+    animation: pulse-speak 0.6s ease infinite alternate;
+  }
+  .mic-btn:disabled { opacity: 0.35; cursor: default; animation: none; }
+  .mic-hint { font-size: 12px; color: var(--wrong); margin-top: 8px; display: none; }
+  .mic-hint.show { display: block; }
 
   .feedback {
     margin-top: 14px; padding: 11px 15px; border-radius: 10px; font-size: 14px;
@@ -665,8 +680,10 @@ word[TAB]nghĩa     hoặc     word | nghĩa</pre>
       <div class="question-hint" id="questionHint">Nhập nghĩa tiếng Việt</div>
       <div class="input-row">
         <input type="text" class="answer-input" id="answerInput" placeholder="Gõ đáp án..." autocomplete="off" autocorrect="off" spellcheck="false">
+        <button class="mic-btn" id="micBtn" onclick="toggleDictation()" title="Ghi âm giọng nói" style="display:none">🎤</button>
         <button class="submit-btn" id="submitBtn" onclick="checkAnswer()">Kiểm tra</button>
       </div>
+      <div class="mic-hint" id="micHint"></div>
       <div class="feedback" id="feedbackBox">
         <span class="fb-icon" id="fbIcon"></span>
         <span id="fbText"></span>
@@ -827,6 +844,7 @@ function init() {
     const s = localStorage.getItem(STORAGE_KEY);
     if (s) { const o = JSON.parse(s); if (o.raw) document.getElementById('dataTextarea').value = o.raw; }
   } catch {}
+  setupDictation();
 }
 
 // ═══ STORAGE ═══
@@ -967,7 +985,7 @@ function renderHome() {
   } else { banner.classList.remove('show'); }
 }
 
-// ═══ SPEECH ═══
+// ═══ SPEECH (TEXT-TO-SPEECH) ═══
 let currentUtterance = null;
 let _currentSpeakBtn = null;
 
@@ -1014,6 +1032,66 @@ function speakWrcWord() {
   speak(word, btn);
 }
 
+// ═══ DICTATION (SPEECH-TO-TEXT) ═══
+let recognition = null;
+let isListening = false;
+
+function setupDictation() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const micBtn = document.getElementById('micBtn');
+  if (!SR) {
+    // Not supported in this browser (e.g. Firefox) — hide the button entirely.
+    micBtn.style.display = 'none';
+    return;
+  }
+  recognition = new SR();
+  recognition.continuous = false;
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 1;
+
+  recognition.onresult = (e) => {
+    let text = '';
+    for (let i = 0; i < e.results.length; i++) text += e.results[i][0].transcript;
+    document.getElementById('answerInput').value = text;
+  };
+  recognition.onerror = (e) => {
+    const hint = document.getElementById('micHint');
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+      hint.textContent = '⚠ Trình duyệt chặn quyền micro. Hãy cho phép truy cập micro rồi thử lại.';
+    } else if (e.error === 'no-speech') {
+      hint.textContent = '⚠ Không nghe thấy gì, hãy thử nói lại.';
+    } else {
+      hint.textContent = '⚠ Lỗi ghi âm: ' + e.error;
+    }
+    hint.classList.add('show');
+    stopListening();
+  };
+  recognition.onend = () => stopListening();
+}
+
+function toggleDictation() {
+  if (!recognition) return;
+  if (isListening) { recognition.stop(); return; }
+
+  // Set recognition language to match what the user needs to type right now.
+  recognition.lang = currentMode === 'en-vi' ? 'vi-VN' : 'en-US';
+  document.getElementById('micHint').classList.remove('show');
+
+  try {
+    recognition.start();
+    isListening = true;
+    document.getElementById('micBtn').classList.add('listening');
+  } catch (err) {
+    // start() throws if already started etc.
+  }
+}
+
+function stopListening() {
+  isListening = false;
+  const micBtn = document.getElementById('micBtn');
+  if (micBtn) micBtn.classList.remove('listening');
+}
+
 // ═══ SCREENS ═══
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -1051,12 +1129,14 @@ function loadQuestion() {
 
   currentEnWord = w.en;
   const speakBtn = document.getElementById('quizSpeakBtn');
+  const micBtn = document.getElementById('micBtn');
 
   if (currentMode === 'en-vi') {
     document.getElementById('questionWord').textContent = w.en;
     document.getElementById('questionHint').textContent = 'Nhập nghĩa tiếng Việt';
-    document.getElementById('answerInput').placeholder = 'Gõ tiếng Việt...';
+    document.getElementById('answerInput').placeholder = 'Gõ tiếng Việt hoặc bấm 🎤 để nói...';
     speakBtn.style.display = 'inline-flex';
+    if (recognition) micBtn.style.display = 'inline-flex';
     // Auto-speak the English word
     setTimeout(() => speak(w.en, speakBtn), 300);
   } else {
@@ -1064,6 +1144,7 @@ function loadQuestion() {
     document.getElementById('questionHint').textContent = 'Nhập từ tiếng Anh';
     document.getElementById('answerInput').placeholder = 'Type in English...';
     speakBtn.style.display = 'none';
+    if (recognition) micBtn.style.display = 'inline-flex';
   }
 
   const inp = document.getElementById('answerInput');
@@ -1071,7 +1152,10 @@ function loadQuestion() {
   document.getElementById('feedbackBox').className='feedback';
   document.getElementById('wrongReviewCard').className='wrong-review-card';
   document.getElementById('submitBtn').disabled=false;
+  document.getElementById('micBtn').disabled=false;
+  document.getElementById('micHint').classList.remove('show');
   document.getElementById('nextBtn').className='next-btn';
+  if (isListening && recognition) recognition.stop();
   setTimeout(()=>inp.focus(),50);
 }
 
@@ -1081,12 +1165,15 @@ function checkAnswer() {
   const raw = inp.value.trim();
   if (!raw) { inp.focus(); return; }
 
+  if (isListening && recognition) recognition.stop();
+
   const w = queue[currentIndex];
   const correct = currentMode==='en-vi' ? w.vi : w.en;
   const isOk = norm(raw) === norm(correct);
 
   answered=true; inp.disabled=true;
   document.getElementById('submitBtn').disabled=true;
+  document.getElementById('micBtn').disabled=true;
   document.getElementById('nextBtn').className='next-btn show';
 
   if (isOk) {
